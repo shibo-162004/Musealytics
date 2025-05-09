@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { VideoOff, AlertTriangle } from 'lucide-react';
-// Removed useToast as it's not used in this revised version for individual feed errors.
-// General permission issues might be handled at a higher level or via a global notification system if needed.
 
 interface CameraFeedProps {
   name: string;
@@ -53,8 +51,9 @@ export function CameraFeed({ name, imageUrl, className, style }: CameraFeedProps
               message = "Permission denied. Please enable camera access in browser settings.";
             } else if (error.name === "NotFoundError") {
               message = "No camera found. Ensure a camera is connected and enabled.";
+            } else if (error.name === "NotReadableError" || (error.message && error.message.toLowerCase().includes("failed to allocate"))) {
+              message = "Camera is busy or unavailable. Another app might be using it, or there could be a hardware issue.";
             } else {
-              // More generic errors like OverconstrainedError, TypeError, etc.
               message = `Camera error: ${error.message}`;
             }
           }
@@ -70,6 +69,11 @@ export function CameraFeed({ name, imageUrl, className, style }: CameraFeedProps
       isMounted = false;
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        // @ts-ignore
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
       }
     };
   }, [name]);
@@ -112,15 +116,24 @@ export function CameraFeed({ name, imageUrl, className, style }: CameraFeedProps
               <p className="text-sm text-destructive-foreground font-semibold">
                 {streamError || "Camera access failed or was denied."}
               </p>
-              {(streamError?.includes("Permission denied") || streamError?.includes("NotAllowedError")) && (
-                 <p className="text-xs text-destructive-foreground/80 mt-1">
-                    Please check browser permissions.
-                 </p>
-              )}
-               {(streamError?.includes("No camera found") || streamError?.includes("NotFoundError")) && (
-                 <p className="text-xs text-destructive-foreground/80 mt-1">
-                    Ensure a camera is connected.
-                 </p>
+              {streamError && (
+                <>
+                  {(streamError.includes("Permission denied") || streamError.includes("NotAllowedError")) && (
+                    <p className="text-xs text-destructive-foreground/80 mt-1">
+                        Please check browser permissions for this site.
+                    </p>
+                  )}
+                  {(streamError.includes("No camera found") || streamError.includes("NotFoundError")) && (
+                    <p className="text-xs text-destructive-foreground/80 mt-1">
+                        Ensure a camera is connected and not disabled.
+                    </p>
+                  )}
+                  {(streamError.toLowerCase().includes("camera is busy") || streamError.toLowerCase().includes("failed to allocate") || streamError.includes("NotReadableError")) && (
+                    <p className="text-xs text-destructive-foreground/80 mt-1">
+                        The camera might be used by another app, or there's a hardware/driver issue. Try closing other camera apps or restarting your browser.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </>
@@ -129,3 +142,4 @@ export function CameraFeed({ name, imageUrl, className, style }: CameraFeedProps
     </Card>
   );
 }
+
