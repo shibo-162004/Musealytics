@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { CSSProperties } from 'react';
@@ -30,7 +29,7 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
       setErrorType(null); // Reset error type
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('getUserMedia is not supported in this browser.');
+        console.warn(`getUserMedia is not supported in this browser for ${name}.`); // Use console.warn for browser feature missing
         toast({
           variant: 'destructive',
           title: 'Unsupported Browser',
@@ -49,31 +48,40 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
           videoRef.current.srcObject = stream;
         }
       } catch (error: unknown) {
-        const err = error as Error & { code?: number }; // DOMException often have a code
-        console.error(`Error accessing camera for ${name} (ID: ${id}):`, err.name, err.message, err.code);
+        const err = error as Error & { code?: number; name?: string; message?: string }; // DOMException often have a code
         setHasCameraPermission(false);
         
         let toastTitle = `Camera Access Issue for ${name}`;
         let toastDescription = `Could not access camera for ${name}. Please enable camera permissions in your browser settings.`;
         let classifiedErrorType = 'generic';
+        let logAsWarning = false;
 
-        // More specific error handling based on err.name and err.message
-        if (err.name === 'NotFoundError' || err.message.toLowerCase().includes('device not found')) {
+        if (err.name === 'NotFoundError' || (err.message && err.message.toLowerCase().includes('device not found'))) {
           toastDescription = `No camera was found for ${name}. Please ensure a camera is connected and enabled.`;
           classifiedErrorType = 'notFound';
+          logAsWarning = true; 
         } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           toastDescription = `Permission to use the camera for ${name} was denied. Please enable camera permissions in your browser settings.`;
           classifiedErrorType = 'permissionDenied';
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || err.message.toLowerCase().includes('allocate') || err.message.toLowerCase().includes('in use') || err.message.toLowerCase().includes('busy') || err.name === 'OverconstrainedError') {
+          logAsWarning = true; 
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || (err.message && (err.message.toLowerCase().includes('allocate') || err.message.toLowerCase().includes('in use') || err.message.toLowerCase().includes('busy'))) || err.name === 'OverconstrainedError') {
           toastTitle = `Camera Busy or Allocation Failed for ${name}`;
           toastDescription = `Failed to access camera for ${name}. It might be in use by another application, another camera feed in this app, or a hardware issue occurred. Browsers often limit access to a single physical camera to one stream at a time. (Error: ${err.name})`;
           classifiedErrorType = 'busyOrAllocation';
+          logAsWarning = true; 
         } else if (err.name === 'AbortError') {
            toastDescription = `Camera access for ${name} was aborted. This can happen if the device is disconnected or a concurrent operation interfered. (Error: ${err.name})`;
            classifiedErrorType = 'aborted';
+           logAsWarning = true;
         } else {
-           toastDescription = `An unexpected error occurred while trying to access camera ${name}: ${err.message} (Error: ${err.name})`;
+           // For truly unexpected errors, keep console.error
+           console.error(`Unexpected error accessing camera for ${name} (ID: ${id}):`, err.name, err.message, err.code);
+           toastDescription = `An unexpected error occurred while trying to access camera ${name}: ${err.message || 'Unknown error'} (Error: ${err.name || 'Unknown name'})`;
            classifiedErrorType = 'unknown';
+        }
+        
+        if (logAsWarning) {
+            console.warn(`Camera access issue for ${name} (ID: ${id}) - Type: ${classifiedErrorType}, Name: ${err.name || 'N/A'}, Message: ${err.message || 'N/A'}` + (err.code ? `, Code: ${err.code}` : ''));
         }
         
         setErrorType(classifiedErrorType);
@@ -113,6 +121,8 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
         return "Access aborted.";
       case 'unsupported':
         return "Browser unsupported.";
+      case 'playbackError':
+        return "Video playback error.";
       case 'unknown':
         return "Unknown error.";
       default:
@@ -140,7 +150,7 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
              if (hasCameraPermission) setIsLoading(false);
           }}
           onError={(e) => {
-            console.error(`Video element error for ${name} (ID: ${id}):`, e);
+            console.warn(`Video element error for ${name} (ID: ${id}):`, e); // Use console.warn for video element errors
             // This error might occur if the stream is lost after initially being acquired
             if (hasCameraPermission !== false) { // Avoid redundant toasts if permission already failed
                 setErrorType('playbackError');
@@ -164,10 +174,11 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/20 p-2 text-center">
              <AlertTriangle className="w-8 h-8 mb-2 text-destructive" />
             <p className="text-xs font-semibold text-destructive-foreground">{name}: {getInCardErrorMessage()}</p>
-            {errorType === 'busyOrAllocation' && <p className="text-xs text-destructive-foreground/80">Try closing other apps/tabs using the camera.</p>}
+            {errorType === 'busyOrAllocation' && <p className="text-xs text-destructive-foreground/80">Try closing other apps/tabs using the camera, or check if another feed here is using it.</p>}
           </div>
         )}
       </CardContent>
     </Card>
   );
 }
+
