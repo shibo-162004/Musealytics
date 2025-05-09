@@ -1,6 +1,7 @@
+
 "use client";
 
-import { CameraFeed } from '@/components/camera-feed';
+import { CameraFeed } from '@/components/camera-feed'; // Corrected import path
 import type { CameraConfig } from '@/lib/constants';
 import { useAppContext } from '@/contexts/app-context';
 import { cn } from '@/lib/utils';
@@ -25,14 +26,15 @@ export function GalleryLayout() {
       className="grid gap-4"
       style={{
         gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${maxRows}, auto)`, // auto height for rows
+        gridTemplateRows: `repeat(${maxRows}, minmax(150px, auto))`, // Ensure rows have a min height and can grow
       }}
     >
       {cameraLayout.map((cam) => (
         <CameraFeed
           key={cam.id}
+          id={cam.id}
           name={cam.name}
-          imageUrl={cam.streamUrl || `https://picsum.photos/seed/${cam.id}/400/300`}
+          // imageUrl is no longer needed as CameraFeed handles live stream
           className={cn("min-h-[150px]")} // Ensure minimum height
           style={{
             gridColumn: `${cam.x + 1} / span ${cam.colSpan}`,
