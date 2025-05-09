@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { analyzeVisitorBehavior, type AnalyzeVisitorBehaviorInput, type AnalyzeVisitorBehaviorOutput } from '@/ai/flows/analyze-visitor-behavior';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UploadCloud } from 'lucide-react';
+import { Loader2, UploadCloud, Download } from 'lucide-react';
 
 export default function VisitorAnalysisPage() {
   const [cameraFrameDataUri, setCameraFrameDataUri] = useState<string>('');
@@ -81,6 +81,46 @@ export default function VisitorAnalysisPage() {
     }
   };
 
+  const escapeCsvField = (field: string | number | undefined): string => {
+    if (field === undefined || field === null) return '';
+    const stringField = String(field);
+    // Wrap in quotes if it contains comma, quote, or newline
+    if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+      return `"${stringField.replace(/"/g, '""')}"`;
+    }
+    return stringField;
+  };
+
+  const handleDownloadCsv = () => {
+    if (!analysisResult) return;
+
+    const headers = ['VisitorDensity', 'AverageDwellTimeSeconds', 'EngagementLevel', 'AnonymizedVisitorDataLog'];
+    const row = [
+      analysisResult.visitorDensity,
+      analysisResult.averageDwellTimeSeconds,
+      analysisResult.engagementLevel,
+      analysisResult.anonymizedVisitorData,
+    ].map(escapeCsvField);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + headers.join(",") + "\n" 
+      + row.join(",");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `visitor_analysis_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link); 
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "CSV Downloaded",
+      description: "Visitor analysis data has been downloaded.",
+    });
+  };
+
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -149,7 +189,13 @@ export default function VisitorAnalysisPage() {
 
         {analysisResult && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Analysis Results</h3>
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Analysis Results</h3>
+                <Button onClick={handleDownloadCsv} variant="outline" size="sm" disabled={isLoading}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download CSV
+                </Button>
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Card>
                 <CardHeader><CardTitle className="text-base">Visitor Density</CardTitle></CardHeader>
@@ -185,4 +231,3 @@ export default function VisitorAnalysisPage() {
     </Card>
   );
 }
-

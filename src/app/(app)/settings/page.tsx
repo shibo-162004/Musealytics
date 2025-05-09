@@ -82,6 +82,7 @@ export default function SettingsPage() {
             <CardTitle>Camera Layout Configuration</CardTitle>
             <CardDescription>
               Arrange camera feeds to match your museum's gallery layout. Define grid position (X, Y) and span.
+              Group related cameras (e.g., Camera 1 and Camera 5 for one gallery) by positioning them adjacently using these settings.
               Grid is 0-indexed. Max 5 columns by default, adjust spans accordingly.
             </CardDescription>
           </CardHeader>
