@@ -17,6 +17,7 @@ export function HeatmapDisplay() {
   const [heatmapResult, setHeatmapResult] = useState<GenerateHeatmapOutput | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
+  const [currentPlaceholderSeed, setCurrentPlaceholderSeed] = useState<string>(`heatmap-${Date.now()}`);
 
   const handleGenerateHeatmap = async () => {
     setIsLoading(true);
@@ -24,25 +25,42 @@ export function HeatmapDisplay() {
     try {
       const input: GenerateHeatmapInput = { galleryLayout, visitorData };
       const result = await generateHeatmap(input);
-      // Simulate image generation if AI doesn't return one
+      
+      // Check if AI returned a valid image URI, otherwise prepare placeholder
       if (!result.heatmapDataUri || !result.heatmapDataUri.startsWith('data:image')) {
-        result.heatmapDataUri = `https://picsum.photos/seed/heatmap-${Date.now()}/800/600`;
+        const newSeed = `heatmap-${Date.now()}`;
+        setCurrentPlaceholderSeed(newSeed); // Update seed for a new placeholder image
+        result.heatmapDataUri = `https://picsum.photos/seed/${newSeed}/800/600`; // Use updated seed
          toast({
-          title: "Using Placeholder Heatmap",
-          description: "AI did not return a valid heatmap image, using a placeholder.",
+          title: "Displaying Placeholder Heatmap",
+          description: "A placeholder image is being used for the heatmap visualization.",
           variant: "default",
         });
       }
       setHeatmapResult(result);
-      toast({
-        title: "Heatmap Generated",
-        description: "Visitor activity heatmap and analysis complete.",
-      });
+      if (result.analysis && result.analysis.toLowerCase().includes("error generating heatmap")) {
+         toast({
+            title: "Heatmap Generation Issue",
+            description: "There was an issue generating the heatmap. Displaying partial results.",
+            variant: "destructive"
+        });
+      } else {
+        toast({
+            title: "Heatmap Generated",
+            description: "Visitor activity heatmap and analysis complete.",
+        });
+      }
     } catch (error) {
       console.error("Error generating heatmap:", error);
+      const newSeed = `heatmap-${Date.now()}`;
+      setCurrentPlaceholderSeed(newSeed);
+      setHeatmapResult({
+        heatmapDataUri: `https://picsum.photos/seed/${newSeed}/800/600`,
+        analysis: "Failed to generate heatmap. Displaying placeholder. " + ((error as Error).message || "An unexpected error occurred.")
+      });
       toast({
         title: "Error Generating Heatmap",
-        description: (error as Error).message || "An unexpected error occurred.",
+        description: (error as Error).message || "An unexpected error occurred. Displaying placeholder.",
         variant: "destructive",
       });
     } finally {
@@ -61,7 +79,7 @@ export function HeatmapDisplay() {
     <Card className="shadow-lg" data-ai-hint="heatmap analytics">
       <CardHeader>
         <CardTitle>Gallery Activity Heatmap</CardTitle>
-        <CardDescription>Visualize visitor engagement and identify popular zones.</CardDescription>
+        <CardDescription>Visualize visitor engagement and identify popular zones using AI-generated heatmaps.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -102,17 +120,22 @@ export function HeatmapDisplay() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Generated Heatmap</h3>
             <div className="relative w-full overflow-hidden border rounded-md aspect-video bg-muted">
-              {heatmapResult.heatmapDataUri && (
+              {heatmapResult.heatmapDataUri ? (
                 <Image
                   src={heatmapResult.heatmapDataUri}
                   alt="Visitor Activity Heatmap"
                   layout="fill"
                   objectFit="contain"
+                  key={heatmapResult.heatmapDataUri.startsWith('https://picsum.photos') ? currentPlaceholderSeed : 'ai-heatmap'} // Force re-render for placeholder
                 />
+              ) : (
+                 <div className="flex items-center justify-center w-full h-full text-muted-foreground">
+                    Heatmap image is not available.
+                 </div>
               )}
             </div>
             <h3 className="text-lg font-semibold">Analysis</h3>
-            <p className="p-4 text-sm border rounded-md bg-secondary/30 text-secondary-foreground">
+            <p className="p-4 text-sm border rounded-md bg-secondary/30 text-secondary-foreground whitespace-pre-wrap">
               {heatmapResult.analysis}
             </p>
           </div>
