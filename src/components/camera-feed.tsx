@@ -30,7 +30,7 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
       setErrorType(null); // Reset error type
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.warn(`getUserMedia is not supported in this browser for ${name}.`); // Use console.warn for browser feature missing
+        console.warn(`getUserMedia is not supported in this browser for ${name}.`);
         toast({
           variant: 'destructive',
           title: 'Unsupported Browser',
@@ -49,13 +49,13 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
           videoRef.current.srcObject = stream;
         }
       } catch (error: unknown) {
-        const err = error as Error & { code?: number; name?: string; message?: string }; // DOMException often have a code
+        const err = error as Error & { code?: number; name?: string; message?: string }; 
         setHasCameraPermission(false);
         
         let toastTitle = `Camera Access Issue for ${name}`;
         let toastDescription = `Could not access camera for ${name}. Please enable camera permissions in your browser settings.`;
         let classifiedErrorType = 'generic';
-        let logAsWarning = false;
+        let logAsWarning = false; 
 
         if (err.name === 'NotFoundError' || (err.message && err.message.toLowerCase().includes('device not found'))) {
           toastDescription = `No camera was found for ${name}. Please ensure a camera is connected and enabled.`;
@@ -69,23 +69,27 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
           toastTitle = `Camera Busy or Allocation Failed for ${name}`;
           toastDescription = `Failed to access camera for ${name}. It might be in use by another application, another camera feed in this app, or a hardware issue occurred. Browsers often limit access to a single physical camera to one stream at a time. (Error: ${err.name})`;
           classifiedErrorType = 'busyOrAllocation';
-          logAsWarning = true; 
+          logAsWarning = false; // Changed to false to log as console.error
         } else if (err.name === 'AbortError') {
            toastDescription = `Camera access for ${name} was aborted. This can happen if the device is disconnected or a concurrent operation interfered. (Error: ${err.name})`;
            classifiedErrorType = 'aborted';
            logAsWarning = true;
-        } else {
-           // For truly unexpected errors, keep console.error
-           console.error(`Unexpected error accessing camera for ${name} (ID: ${id}):`, err.name, err.message, err.code);
+        } else { 
+           console.error(`Unexpected error accessing camera for ${name} (ID: ${id}): ${err.name} - ${err.message}` + (err.code ? ` Code: ${err.code}` : ''));
            toastDescription = `An unexpected error occurred while trying to access camera ${name}: ${err.message || 'Unknown error'} (Error: ${err.name || 'Unknown name'})`;
            classifiedErrorType = 'unknown';
         }
         
-        if (logAsWarning) {
-            console.warn(`Camera access issue for ${name} (ID: ${id}) - Type: ${classifiedErrorType}, Name: ${err.name || 'N/A'}, Message: ${err.message || 'N/A'}` + (err.code ? `, Code: ${err.code}` : ''));
+        setErrorType(classifiedErrorType); 
+
+        if (classifiedErrorType !== 'unknown') { 
+            if (logAsWarning) {
+                console.warn(`Camera access issue for ${name} (ID: ${id}) - Type: ${classifiedErrorType}, Name: ${err.name || 'N/A'}, Message: ${err.message || 'N/A'}` + (err.code ? `, Code: ${err.code}` : ''));
+            } else {
+                console.error(`Error accessing camera for ${name} (ID: ${id}) - Type: ${classifiedErrorType}, Name: ${err.name || 'N/A'}, Message: ${err.message || 'N/A'}` + (err.code ? `, Code: ${err.code}` : ''));
+            }
         }
         
-        setErrorType(classifiedErrorType);
         toast({
           variant: 'destructive',
           title: toastTitle,
@@ -99,16 +103,15 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
     getCameraPermission();
 
     return () => {
-      // Cleanup: Stop video tracks when component unmounts or dependencies change
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => {
           track.stop();
         });
-        videoRef.current.srcObject = null; // Explicitly release the stream
+        videoRef.current.srcObject = null; 
       }
     };
-  }, [id, name, toast]); // toast is stable, id/name trigger re-fetch for "different" cameras
+  }, [id, name, toast]); 
 
   const getInCardErrorMessage = () => {
     switch (errorType) {
@@ -137,25 +140,24 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
         <CardTitle className="text-sm font-medium truncate">{name}</CardTitle>
         <VideoIcon className="w-4 h-4 text-primary" />
       </CardHeader>
-      <CardContent className="p-0 flex-grow relative min-h-[150px] md:min-h-[100px]"> {/* Adjusted min-height for consistency */}
+      <CardContent className="p-0 flex-grow relative min-h-[150px] md:min-h-[100px]">
         <video
           ref={videoRef}
           className="w-full h-full object-cover"
           autoPlay
           muted
-          playsInline // Important for iOS
+          playsInline 
           onLoadedData={() => {
-            if (hasCameraPermission) setIsLoading(false); // Only hide loader if permission was granted
+            if (hasCameraPermission) setIsLoading(false); 
           }}
-          onPlay={() => { // Alternative way to confirm video is playing
+          onPlay={() => { 
              if (hasCameraPermission) setIsLoading(false);
           }}
           onError={(e) => {
-            console.warn(`Video element error for ${name} (ID: ${id}):`, e); // Use console.warn for video element errors
-            // This error might occur if the stream is lost after initially being acquired
-            if (hasCameraPermission !== false) { // Avoid redundant toasts if permission already failed
+            console.warn(`Video element error for ${name} (ID: ${id}):`, e); 
+            if (hasCameraPermission !== false) { 
                 setErrorType('playbackError');
-                setHasCameraPermission(false); // Update status
+                setHasCameraPermission(false); 
                 setIsLoading(false);
                 toast({
                     variant: 'destructive',
@@ -182,4 +184,3 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
     </Card>
   );
 }
- 
