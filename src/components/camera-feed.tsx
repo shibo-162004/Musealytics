@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CSSProperties } from 'react';
@@ -181,4 +182,4 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
     </Card>
   );
 }
-
+ 
