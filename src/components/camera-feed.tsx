@@ -30,7 +30,7 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
       setErrorType(null); // Reset error type
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.warn(`getUserMedia is not supported in this browser for ${name}.`);
+        console.warn(`getUserMedia is not supported in this browser for ${name}.`); // Use console.warn for browser feature missing
         toast({
           variant: 'destructive',
           title: 'Unsupported Browser',
@@ -67,9 +67,9 @@ export function CameraFeed({ id, name, className, style }: CameraFeedProps) {
           logAsWarning = true; 
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError' || (err.message && (err.message.toLowerCase().includes('allocate') || err.message.toLowerCase().includes('in use') || err.message.toLowerCase().includes('busy'))) || err.name === 'OverconstrainedError') {
           toastTitle = `Camera Busy or Allocation Failed for ${name}`;
-          toastDescription = `Failed to access camera for ${name}. It might be in use by another application, another camera feed in this app, or a hardware issue occurred. Browsers often limit access to a single physical camera to one stream at a time. (Error: ${err.name})`;
+          toastDescription = `Failed to access camera for ${name}. It may be in use by another application OR by another camera feed within this app (as browsers often limit a single physical camera to one stream). Please check other apps or try reducing the number of active camera feeds in this app's settings if you have many configured. (Error: ${err.name})`;
           classifiedErrorType = 'busyOrAllocation';
-          logAsWarning = false; // Changed to false to log as console.error
+          logAsWarning = false; 
         } else if (err.name === 'AbortError') {
            toastDescription = `Camera access for ${name} was aborted. This can happen if the device is disconnected or a concurrent operation interfered. (Error: ${err.name})`;
            classifiedErrorType = 'aborted';
